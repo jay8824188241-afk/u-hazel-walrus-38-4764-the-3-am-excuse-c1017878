@@ -8,7 +8,7 @@
  * the same input always produces the same bytes.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const HEADER = "THE 3 AM EXCUSE";
@@ -50,7 +50,11 @@ function main(): void {
   const entry = buildEntry();
 
   mkdirSync(outputDir, { recursive: true });
-  writeFileSync(outputPath, entry, "utf8");
+  // Atomic write: publish via a temp file + rename so a reader never
+  // observes a half-written entry.txt (e.g. on a crash mid-write).
+  const tmpPath = join(outputDir, `.entry.txt.tmp-${process.pid}`);
+  writeFileSync(tmpPath, entry, "utf8");
+  renameSync(tmpPath, outputPath);
 
   // Self-check: read it back and verify the format.
   const roundTrip = readFileSync(outputPath, "utf8");
